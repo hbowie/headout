@@ -37,7 +37,6 @@ package com.powersurgepub.headout;
 public class Headout 
     extends javax.swing.JFrame 
         implements
-            MarkdownLineReader,
             WindowToManage,
             XHandler{
   
@@ -274,146 +273,6 @@ public class Headout
     defaultY = (d.height - this.getSize().height) / 2;
   }
   
-  private void generateTOC() {
-    
-    // Open Input File
-    reader = new ClipboardReader();
-    reader.open();
-    MarkdownInitialParser mdParser = new MarkdownInitialParser (this);
-    
-    // Open Output File
-    ClipboardMaker lineWriter = new ClipboardMaker();
-    int markupFormat = MarkupWriter.MARKDOWN_FORMAT;
-    /* if (outputFormatComboBox.getSelectedIndex() == 0) {
-      markupFormat = MarkupWriter.HTML_FRAGMENT_FORMAT;
-    } */
-    MarkupWriter writer = new MarkupWriter(lineWriter, markupFormat);
-    writer.setIndenting(true);
-    writer.setIndentPerLevel(2);
-    writer.openForOutput();
-    
-    
-    int firstHeadingLevel = 0;
-    int startHeadingLevel = 1; //headingLevelStartSlider.getValue();
-    int endHeadingLevel = 6; //headingLevelEndSlider.getValue();
-    
-    boolean listItemOpen[] = new boolean[7];
-    for (int i = 0; i < 7; i++) {
-      listItemOpen[i] = false;
-    }
-    
-    if (markupFormat == MarkupWriter.HTML_FRAGMENT_FORMAT) {
-      writer.startDiv("", "toc");
-      writer.startUnorderedList("");
-    }
-    
-    int lastHeadingLevel = 1;
-
-    MarkdownLine mdLine = mdParser.getNextLine();
-    while (mdLine != null) {    
-      if (mdLine.getHeadingLevel() > 0
-        && mdLine.getHeadingLevel() >= startHeadingLevel 
-        && mdLine.getHeadingLevel() <= endHeadingLevel) {
-        if (mdLine.getID().length() > 0
-            && (! mdLine.getID().equals("tableofcontents"))
-            && (! mdLine.getID().equals("contents"))) {
-          if (firstHeadingLevel < 1) {
-            firstHeadingLevel = mdLine.getHeadingLevel();
-            lastHeadingLevel = mdLine.getHeadingLevel();
-          }
-
-          String link = "#" + mdLine.getID();
-          String text = mdLine.getLineContent();
-          if (markupFormat == MarkupWriter.HTML_FRAGMENT_FORMAT) {
-            // Write HTML
-            if (mdLine.getHeadingLevel() > lastHeadingLevel) {
-              writer.startUnorderedList("");
-            } else {
-              if (mdLine.getHeadingLevel() < lastHeadingLevel) {
-                int l = lastHeadingLevel;
-                while (l > mdLine.getHeadingLevel()) {
-                  if (listItemOpen[l]) {
-                    writer.endListItem();
-                    writer.endUnorderedList();
-                    listItemOpen[l] = false;
-                  }
-                  l--;
-                } // end while higher (more deeply indented) lists still open
-              } else {
-                // No change in heading level
-                if (listItemOpen[mdLine.getHeadingLevel()]) {
-                  writer.endListItem();
-                  listItemOpen[mdLine.getHeadingLevel()] = false;
-                }
-              }
-            } // end if new heading level less than or equal to last
-
-            if (listItemOpen[mdLine.getHeadingLevel()]) {
-              writer.endListItem();
-              listItemOpen[mdLine.getHeadingLevel()] = false;
-            }
-            writer.startListItem("");
-            writer.startLink(link);
-            writer.write(text);
-            writer.endLink(link);
-            listItemOpen[mdLine.getHeadingLevel()] = true;
-          } else {
-            // Write Markdown
-            StringBuilder tocLine = new StringBuilder();
-            int h = firstHeadingLevel;
-            while (h < mdLine.getHeadingLevel()) {
-              tocLine.append("    ");
-              h++;
-            }
-            tocLine.append("* ");
-            tocLine.append("[");
-            tocLine.append(text);
-            tocLine.append("](");
-            tocLine.append(link);
-            tocLine.append(")");
-            writer.writeLine(tocLine.toString());
-          } // end if markdown format
-          lastHeadingLevel = mdLine.getHeadingLevel();
-
-        } // end if we have a heading string
-      } // end if we have a heading identifier
-      
-      mdLine = mdParser.getNextLine();
-    } // end while more markdown lines to process
-    
-    if (markupFormat == MarkupWriter.HTML_FRAGMENT_FORMAT) {
-      int l = lastHeadingLevel;
-      while (l >= firstHeadingLevel) {
-        if (listItemOpen[l]) {
-          writer.endListItem();
-          writer.endUnorderedList();
-          listItemOpen[l] = false;
-        }
-        l--;
-      } // end while higher (more deeply indented) lists still open
-      writer.endDiv();
-    }
-    
-    reader.close();
-    writer.close();
-    // messageLabel.setText("Paste TOC from clipboard");
-  }
-  
-  /**
-   Obtains the next line of raw markdown source. 
-  
-   @return The next markdown input line, or null when no more input is available.
-   */
-  public String getMarkdownInputLine() {
-    if (reader == null
-        || reader.isAtEnd()
-        || (! reader.isOK())) {
-      return null;
-    } else {
-      return reader.readLine();
-    }
-  }
-  
   /**
      Standard way to respond to an About Menu Item Selection on a Mac.
    */
@@ -518,6 +377,22 @@ public class Headout
             (String)transformTypeComboBox.getSelectedItem(),
             parmsPanel);
         break;
+        
+      case 1:
+        transformer = new GenTocFromMarkdown (
+            this,
+            transformTypeComboBox.getSelectedIndex(),
+            (String)transformTypeComboBox.getSelectedItem(),
+            parmsPanel);
+        break;
+        
+      case 2:
+        transformer = new OPMLtoMarkdown (
+            this,
+            transformTypeComboBox.getSelectedIndex(),
+            (String)transformTypeComboBox.getSelectedItem(),
+            parmsPanel);
+        break;
             
     }
     
@@ -556,7 +431,7 @@ public class Headout
     setDefaultCloseOperation(javax.swing.WindowConstants.EXIT_ON_CLOSE);
     getContentPane().setLayout(new java.awt.GridBagLayout());
 
-    transformTypeComboBox.setModel(new javax.swing.DefaultComboBoxModel(new String[] { "Create Markdown ToC from Markdown", "Create HTML ToC from Markdown" }));
+    transformTypeComboBox.setModel(new javax.swing.DefaultComboBoxModel(new String[] { "Create Markdown ToC from Markdown", "Create HTML ToC from Markdown", "Create Markdown from OPML" }));
     transformTypeComboBox.addActionListener(new java.awt.event.ActionListener() {
       public void actionPerformed(java.awt.event.ActionEvent evt) {
         transformTypeComboBoxActionPerformed(evt);
@@ -619,7 +494,14 @@ public class Headout
   }//GEN-LAST:event_transformTypeComboBoxActionPerformed
 
   private void transformNowButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_transformNowButtonActionPerformed
-    transformer.transformNow(inputSelector.getReader(), outputSelector.getWriter());
+    try {
+      transformer.transformNow(inputSelector.getReader(), outputSelector.getWriter());
+    } catch (TransformException e) {
+      JOptionPane.showMessageDialog(this,
+        e.getMessage(),
+      "Transform error",
+      JOptionPane.ERROR_MESSAGE);
+    }
   }//GEN-LAST:event_transformNowButtonActionPerformed
 
   /**

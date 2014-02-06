@@ -15,21 +15,23 @@
  */
 package com.powersurgepub.headout;
 
-  import com.powersurgepub.pstextio.*;
-
 /**
- Standard interface for a transform routine used by Headout. 
+ A transformation exception 
 
  @author Herb Bowie
  */
-public interface HeadOutTransformer {
-  
-  public void transformNow(TextLineReader reader, TextLineWriter writer)
-      throws TransformException;
+public class TransformException
+    extends Exception {
   
   /**
-   Save user options as preferences. 
-  */
-  public void savePrefs();
+    A constructor with no message. 
+   */
+  public TransformException() {
+    super();
+  }
   
+  public TransformException(String message) {
+    super(message);
+  }
+
 }

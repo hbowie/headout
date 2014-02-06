@@ -123,6 +123,8 @@ public class TextFileSelector {
 		); 
     
     fileNameText = new JTextArea("                    ");
+    fileNameText.setEditable(false);
+    fileNameText.setLineWrap(true);
     
     gb.setFill(GridBagConstraints.BOTH);
     gb.setColumnWeight(1.0);

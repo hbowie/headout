@@ -22,15 +22,24 @@ package com.powersurgepub.headout;
   import com.powersurgepub.psutils.*;
   import javax.swing.*;
 
+  import java.io.*;
+  import java.util.*;
+  import org.xml.sax.*;
+  import org.xml.sax.helpers.*;
+
 /**
  Generate a Table of Contents from Markdown source. 
 
  @author Herb Bowie
  */
-public class GenTocFromMarkdown 
-     implements 
-        HeadOutTransformer,
-        MarkdownLineReader {
+public class OPMLtoMarkdown 
+      extends DefaultHandler 
+      implements 
+        HeadOutTransformer {
+  
+  private     static  final String OUTLINE = "outline";
+  private     static  final String TEXT = "text";
+  private     static  final String NOTE = "_note";
   
   private     static  final String HEADING_LEVEL_START = "heading-level-start";
   private     static  final String HEADING_LEVEL_END   = "heading-level-end";
@@ -61,7 +70,12 @@ public class GenTocFromMarkdown
   private             TextLineReader      reader;
   private             TextLineWriter      lineWriter;
   
-  public GenTocFromMarkdown (
+  private             XMLReader           parser;
+  private             MarkupWriter        writer = null;
+  
+  private             int                 headingLevel = 0;
+  
+  public OPMLtoMarkdown (
       JFrame frame, 
       int transformTypeIndex, 
       String transformTypeString,
@@ -110,7 +124,8 @@ public class GenTocFromMarkdown
   }
   
   /**
-   Generate a Table of Contents from the headings found in the Markdown source. 
+   Reads an outline defined in OPML and generates a Markdown file using 
+   headings to represent each outline level. 
   
    @param reader The line reader to be used to access the input.
    @param lineWriter The line writer to be used to create the output. 
@@ -121,142 +136,126 @@ public class GenTocFromMarkdown
     
     this.reader = reader;
     this.lineWriter = lineWriter;
-    reader.open();
-    MarkdownInitialParser mdParser = new MarkdownInitialParser (this);
+    
+    boolean ok = true;
+    String message = "";
+    File xmlSourceAsFile = new File (reader.toString());
     
     // Open Output File
     int markupFormat = MarkupWriter.MARKDOWN_FORMAT;
-    if (transformTypeString.contains("Create HTML")) {
-      markupFormat = MarkupWriter.HTML_FRAGMENT_FORMAT;
-    }
-    MarkupWriter writer = new MarkupWriter(lineWriter, markupFormat);
+    writer = new MarkupWriter(lineWriter, markupFormat);
     writer.setIndenting(true);
     writer.setIndentPerLevel(2);
     writer.openForOutput();
     
-    
-    int firstHeadingLevel = 0;
-    int startHeadingLevel = headingLevelStartSlider.getValue();
-    int endHeadingLevel = headingLevelEndSlider.getValue();
-    
-    boolean listItemOpen[] = new boolean[7];
-    for (int i = 0; i < 7; i++) {
-      listItemOpen[i] = false;
+    // Set up XML Parser to read the OPML input
+    try {
+      parser = XMLReaderFactory.createXMLReader();
+    } catch (SAXException e) {
+      Logger.getShared().recordEvent (LogEvent.MINOR, 
+          "Generic SAX Parser Not Found",
+          false);
+      try {
+        parser = XMLReaderFactory.createXMLReader
+            ("org.apache.xerces.parsers.SAXParser");
+      } catch (SAXException eex) {
+        Logger.getShared().recordEvent (LogEvent.MEDIUM, 
+            "Xerces SAX Parser Not Found",
+            false);
+        ok = false;
+        message = "SAX Parser Not Found";
+      }
     }
-    
-    if (markupFormat == MarkupWriter.HTML_FRAGMENT_FORMAT) {
-      writer.startDiv("", "toc");
-      writer.startUnorderedList("");
-    }
-    
-    int lastHeadingLevel = 1;
-
-    MarkdownLine mdLine = mdParser.getNextLine();
-    while (mdLine != null) {    
-      if (mdLine.getHeadingLevel() > 0
-        && mdLine.getHeadingLevel() >= startHeadingLevel 
-        && mdLine.getHeadingLevel() <= endHeadingLevel) {
-        if (mdLine.getID().length() > 0
-            && (! mdLine.getID().equals("tableofcontents"))
-            && (! mdLine.getID().equals("contents"))) {
-          if (firstHeadingLevel < 1) {
-            firstHeadingLevel = mdLine.getHeadingLevel();
-            lastHeadingLevel = mdLine.getHeadingLevel();
-          }
-
-          String link = "#" + mdLine.getID();
-          String text = mdLine.getLineContent();
-          if (markupFormat == MarkupWriter.HTML_FRAGMENT_FORMAT) {
-            // Write HTML
-            if (mdLine.getHeadingLevel() > lastHeadingLevel) {
-              writer.startUnorderedList("");
-            } else {
-              if (mdLine.getHeadingLevel() < lastHeadingLevel) {
-                int l = lastHeadingLevel;
-                while (l > mdLine.getHeadingLevel()) {
-                  if (listItemOpen[l]) {
-                    writer.endListItem();
-                    writer.endUnorderedList();
-                    listItemOpen[l] = false;
-                  }
-                  l--;
-                } // end while higher (more deeply indented) lists still open
-              } else {
-                // No change in heading level
-                if (listItemOpen[mdLine.getHeadingLevel()]) {
-                  writer.endListItem();
-                  listItemOpen[mdLine.getHeadingLevel()] = false;
-                }
-              }
-            } // end if new heading level less than or equal to last
-
-            if (listItemOpen[mdLine.getHeadingLevel()]) {
-              writer.endListItem();
-              listItemOpen[mdLine.getHeadingLevel()] = false;
-            }
-            writer.startListItem("");
-            writer.startLink(link);
-            writer.write(text);
-            writer.endLink(link);
-            listItemOpen[mdLine.getHeadingLevel()] = true;
-          } else {
-            // Write Markdown
-            StringBuilder tocLine = new StringBuilder();
-            int h = firstHeadingLevel;
-            while (h < mdLine.getHeadingLevel()) {
-              tocLine.append("    ");
-              h++;
-            }
-            tocLine.append("* ");
-            tocLine.append("[");
-            tocLine.append(text);
-            tocLine.append("](");
-            tocLine.append(link);
-            tocLine.append(")");
-            writer.writeLine(tocLine.toString());
-          } // end if markdown format
-          lastHeadingLevel = mdLine.getHeadingLevel();
-
-        } // end if we have a heading string
-      } // end if we have a heading identifier
+    if (ok) {
+      parser.setContentHandler (this);
       
-      mdLine = mdParser.getNextLine();
-    } // end while more markdown lines to process
-    
-    if (markupFormat == MarkupWriter.HTML_FRAGMENT_FORMAT) {
-      int l = lastHeadingLevel;
-      while (l >= firstHeadingLevel) {
-        if (listItemOpen[l]) {
-          writer.endListItem();
-          writer.endUnorderedList();
-          listItemOpen[l] = false;
-        }
-        l--;
-      } // end while higher (more deeply indented) lists still open
-      writer.endDiv();
+      if (! xmlSourceAsFile.exists()) {
+        ok = false;
+        Logger.getShared().recordEvent (LogEvent.MEDIUM, 
+            "XML File or Directory " + reader.toString() + " cannot be found",
+            false);
+        message = "Input file not found";
+      }
+    }
+    if (ok
+        && ! xmlSourceAsFile.isFile()) {
+      ok = false;
+      Logger.getShared().recordEvent (LogEvent.MEDIUM, 
+            "XML File or Directory " + reader.toString() + " is not a file",
+            false); 
+        message = "Input source is not a file";
+    }
+    if (ok) {
+      if (! xmlSourceAsFile.canRead()) {
+        ok = false;
+        Logger.getShared().recordEvent (LogEvent.MEDIUM, 
+            "XML File or Directory " + reader.toString() + " cannot be read",
+            false); 
+        message = "Input file cannot be read";
+      }
+    }
+    if (ok) {
+      try {
+        parser.parse (xmlSourceAsFile.toURI().toString());
+      } 
+      catch (SAXException saxe) {
+        Logger.getShared().recordEvent (LogEvent.MEDIUM, 
+            "Encountered SAX error while reading XML file " + reader.toString() 
+            + saxe.toString(),
+            false);  
+        ok = false;
+        message = "SAX error while reading OPML file";
+      } 
+      catch (java.io.IOException ioe) {
+        Logger.getShared().recordEvent (LogEvent.MEDIUM, 
+            "Encountered I/O error while reading XML file " + reader.toString() 
+            + ioe.toString(),
+            false);   
+        ok = false;
+        message = "I/O Error reading OPML file";
+      }
     }
     
-    reader.close();
+    if (! ok) {
+      throw new TransformException(message);
+    }
+
     writer.close();
     
     savePrefs();
-    
   }
   
-  /**
-   Obtains the next line of raw markdown source. 
-  
-   @return The next markdown input line, or null when no more input is available.
-   */
-  public String getMarkdownInputLine() {
-    if (reader == null
-        || reader.isAtEnd()
-        || (! reader.isOK())) {
-      return null;
-    } else {
-      return reader.readLine();
+  public void startElement (
+      String namespaceURI,
+      String localName,
+      String qualifiedName,
+      Attributes attributes) {
+
+    if (localName.equalsIgnoreCase(OUTLINE)) {
+      headingLevel++;
+      for (int i = 0; i < attributes.getLength(); i++) {
+        String name = attributes.getLocalName (i);
+        String value = attributes.getValue (i);
+        if (name.equalsIgnoreCase(TEXT)) {
+          writer.writeHeading(headingLevel, value, "");
+        }
+        else
+        if (name.equalsIgnoreCase(NOTE)) {
+          writer.writeLine(value);
+        }
+      }
     }
-  }
+  } // end method
+  
+  public void endElement (
+      String namespaceURI,
+      String localName,
+      String qualifiedName) {
+    
+    if (localName.equalsIgnoreCase(OUTLINE)) {
+      headingLevel--;
+    }
+  } // end method
   
   /**
    Save user options as preferences. 
