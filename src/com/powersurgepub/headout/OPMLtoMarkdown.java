@@ -41,8 +41,10 @@ public class OPMLtoMarkdown
   private     static  final String TEXT = "text";
   private     static  final String NOTE = "_note";
   
-  private     static  final String HEADING_LEVEL_START = "heading-level-start";
-  private     static  final String HEADING_LEVEL_END   = "heading-level-end";
+  private     static  final String HEADING_LEVEL_START = "opml-heading-level-start";
+  private     static  final String HEADING_LEVEL_END   = "opml-heading-level-end";
+  private     static  final String INPUT_FILE          = "opml-input-file";
+  private     static  final String OUTPUT_FILE         = "opml-output-file";
   
   private             UserPrefs           prefs;
   
@@ -72,6 +74,22 @@ public class OPMLtoMarkdown
   
   private             XMLReader           parser;
   private             MarkupWriter        writer = null;
+  
+  private             boolean             ok = true;
+  
+  private             String              message = "";
+  
+  private             File                xmlSourceAsFile;
+  
+  private             int                 pass = 0;
+  private             boolean             tocGenerated = false;
+  private             boolean             tocInsertionPointFound = false;
+  
+  private             int                 startHeadingLevel = 1;
+  private             int                 endHeadingLevel = 6;
+  
+  private             int                 firstHeadingLevel = 0;
+  private             int                 lastHeadingLevel = 1;
   
   private             int                 headingLevel = 0;
   
@@ -137,9 +155,12 @@ public class OPMLtoMarkdown
     this.reader = reader;
     this.lineWriter = lineWriter;
     
-    boolean ok = true;
-    String message = "";
-    File xmlSourceAsFile = new File (reader.toString());
+    ok = true;
+    message = "";
+    xmlSourceAsFile = new File (reader.toString());
+    
+    startHeadingLevel = headingLevelStartSlider.getValue();
+    endHeadingLevel = headingLevelEndSlider.getValue();
     
     // Open Output File
     int markupFormat = MarkupWriter.MARKDOWN_FORMAT;
@@ -194,25 +215,16 @@ public class OPMLtoMarkdown
         message = "Input file cannot be read";
       }
     }
+    
     if (ok) {
-      try {
-        parser.parse (xmlSourceAsFile.toURI().toString());
-      } 
-      catch (SAXException saxe) {
-        Logger.getShared().recordEvent (LogEvent.MEDIUM, 
-            "Encountered SAX error while reading XML file " + reader.toString() 
-            + saxe.toString(),
-            false);  
-        ok = false;
-        message = "SAX error while reading OPML file";
-      } 
-      catch (java.io.IOException ioe) {
-        Logger.getShared().recordEvent (LogEvent.MEDIUM, 
-            "Encountered I/O error while reading XML file " + reader.toString() 
-            + ioe.toString(),
-            false);   
-        ok = false;
-        message = "I/O Error reading OPML file";
+      pass = 0;
+      tocGenerated = false;
+      // Let's do an initial pass
+      parseOPML();
+      // If we generated a Table of Contents on the first pass, 
+      // then let's do a second pass to finish writing the outline. 
+      if (tocGenerated) {
+        parseOPML();
       }
     }
     
@@ -225,6 +237,33 @@ public class OPMLtoMarkdown
     savePrefs();
   }
   
+  private void parseOPML() {
+    
+    pass++;
+    tocInsertionPointFound = false;
+    
+    try {
+      parser.parse (xmlSourceAsFile.toURI().toString());
+    } 
+    catch (SAXException saxe) {
+      Logger.getShared().recordEvent (LogEvent.MEDIUM, 
+          "Encountered SAX error while reading XML file " + reader.toString() 
+          + saxe.toString(),
+          false);  
+      ok = false;
+      message = "SAX error while reading OPML file";
+    } 
+    catch (java.io.IOException ioe) {
+      Logger.getShared().recordEvent (LogEvent.MEDIUM, 
+          "Encountered I/O error while reading XML file " + reader.toString() 
+          + ioe.toString(),
+          false);   
+      ok = false;
+      message = "I/O Error reading OPML file";
+    }
+      
+  }
+  
   public void startElement (
       String namespaceURI,
       String localName,
@@ -233,18 +272,79 @@ public class OPMLtoMarkdown
 
     if (localName.equalsIgnoreCase(OUTLINE)) {
       headingLevel++;
+      boolean generatingContent = false;
       for (int i = 0; i < attributes.getLength(); i++) {
         String name = attributes.getLocalName (i);
         String value = attributes.getValue (i);
         if (name.equalsIgnoreCase(TEXT)) {
-          writer.writeHeading(headingLevel, value, "");
+          
+          String id = MarkdownLine.makeID(value, 0, value.length() - 1);
+          // System.out.println(" ");
+          // System.out.println("Pass # = " + String.valueOf(pass));
+          // System.out.println("Heading Level = " + String.valueOf(headingLevel));
+          // System.out.println("Heading Text  = " + value);
+          // System.out.println("Heading ID    = " + id);
+          boolean tocEligibleHeading = 
+              (headingLevel >= startHeadingLevel
+              && headingLevel <= endHeadingLevel
+              && id.length() > 0
+              && (! id.equalsIgnoreCase("tableofcontents"))
+              && (! id.equalsIgnoreCase("contents")));
+          // System.out.println("Eligible for TOC? " + String.valueOf(tocEligibleHeading));
+          if (tocEligibleHeading
+              && (! tocInsertionPointFound)) {
+            tocInsertionPointFound = true;
+            // System.out.println("TOC Insertion Point Found!");
+          }
+          
+          if (pass == 1
+              && tocInsertionPointFound) {
+            tocGenerated = true;
+          }
+          
+          if (pass == 1 && tocGenerated) {
+            if (tocEligibleHeading) {
+              // System.out.println("Writing out a toc line");
+              if (firstHeadingLevel < 1) {
+                firstHeadingLevel = headingLevel;
+                lastHeadingLevel = headingLevel;
+              }
+              String link = "#" + id;
+              StringBuilder tocLine = new StringBuilder();
+              int h = firstHeadingLevel;
+              while (h < headingLevel) {
+                tocLine.append("    ");
+                h++;
+              }
+              tocLine.append("* ");
+              tocLine.append("[");
+              tocLine.append(value);
+              tocLine.append("](");
+              tocLine.append(link);
+              tocLine.append(")");
+              writer.writeLine(tocLine.toString());
+              lastHeadingLevel = headingLevel;
+            } else {
+              // If first pass and we're generating a table of contents,
+              // but this heading isn't eligible, then just skip it for now. 
+            }
+          } // End of toc generation condition
+          
+          if ((pass == 1 && (! tocGenerated))
+              || (pass == 2 && (tocInsertionPointFound))) {
+            writer.writeHeading(headingLevel, value, "");
+            generatingContent = true;
+            // System.out.println("Writing out a heading line");
+          } // End of content generation condition
         }
         else
         if (name.equalsIgnoreCase(NOTE)) {
-          writer.writeLine(value);
-        }
-      }
-    }
+          if (generatingContent) {
+            writer.writeLine(value);
+          }
+        } // end if it was a note
+      } // End for each attribute of the Outline element
+    } // End if it is an Outline element
   } // end method
   
   public void endElement (

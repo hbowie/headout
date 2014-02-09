@@ -16,9 +16,7 @@
 
 package com.powersurgepub.headout;
 
-  import com.powersurgepub.psmkdown.*;
   import com.powersurgepub.pstextio.*;
-  import com.powersurgepub.psdatalib.txbio.*;
   import com.powersurgepub.psdatalib.ui.*;
   import com.powersurgepub.psutils.*;
   import com.powersurgepub.xos2.*;
@@ -48,9 +46,7 @@ public class Headout
   private     static  final int   DEFAULT_WIDTH = 780;
   private     static  final int   DEFAULT_HEIGHT = 360;
   
-  private     static  final String HEADING_LEVEL_START = "heading-level-start";
-  private     static  final String HEADING_LEVEL_END   = "heading-level-end";
-  private     static  final String OUTPUT_FORMAT       = "output-format";
+  private     static  final String TRANSFORM_TYPE = "transform-type";
   
   private                   int   defaultX = 0;
   private                   int   defaultY = 0;
@@ -98,6 +94,8 @@ public class Headout
   private             TextFileSelector    outputSelector;
   
   private             HeadOutTransformer  transformer = null;
+  
+  private             JPanel              parmsPanel = null;
 
   /**
    Creates new form Headout
@@ -122,6 +120,8 @@ public class Headout
     programVersion = ProgramVersion.getShared ();
     
     initComponents();
+    
+    transformTypeComboBox.setSelectedIndex(prefs.getPrefAsInt(TRANSFORM_TYPE, 0));
     
     inputSelector = new TextFileSelector (this, TextFileSelector.INPUT, inputPanel);
     outputSelector = new TextFileSelector (this, TextFileSelector.OUTPUT, outputPanel);
@@ -335,16 +335,13 @@ public class Headout
      We're out of here!
    */
   public void handleQuit() {
-    // System.out.println("LinkTweaker.handleQuit");
     savePrefs();
     System.exit(0);
   }
 
   private void savePrefs() {
-    // mdTocPrefs.savePrefs();
-    // prefs.setPref(HEADING_LEVEL_START, headingLevelStartSlider.getValue());
-    // prefs.setPref(HEADING_LEVEL_END, headingLevelEndSlider.getValue());
-    // prefs.setPref(OUTPUT_FORMAT, (String)outputFormatComboBox.getSelectedItem());
+    prefs.setPref(TRANSFORM_TYPE, transformTypeComboBox.getSelectedIndex());
+    prefs.savePrefs();
   }
   
   public void setRefComponent (Component refComponent) {
@@ -365,7 +362,9 @@ public class Headout
   
   private void transformTypeSelected() {
     
-    getContentPane().remove(parmsPanel);
+    if (parmsPanel != null) {
+      getContentPane().remove(parmsPanel);
+    }
     
     parmsPanel = new JPanel();
     
@@ -406,6 +405,7 @@ public class Headout
     gridBagConstraints.weighty = 1.0;
     gridBagConstraints.insets = new java.awt.Insets(4, 4, 4, 4);
     getContentPane().add(parmsPanel, gridBagConstraints);
+    pack();
     
   }
 
@@ -422,7 +422,6 @@ public class Headout
     outputFormatGroup = new javax.swing.ButtonGroup();
     transformTypeComboBox = new javax.swing.JComboBox();
     inputPanel = new javax.swing.JPanel();
-    parmsPanel = new javax.swing.JPanel();
     outputPanel = new javax.swing.JPanel();
     transformNowButton = new javax.swing.JButton();
     menuBar = new javax.swing.JMenuBar();
@@ -451,14 +450,6 @@ public class Headout
     gridBagConstraints.weighty = 1.0;
     gridBagConstraints.insets = new java.awt.Insets(4, 4, 4, 4);
     getContentPane().add(inputPanel, gridBagConstraints);
-    gridBagConstraints = new java.awt.GridBagConstraints();
-    gridBagConstraints.gridx = 1;
-    gridBagConstraints.gridy = 3;
-    gridBagConstraints.fill = java.awt.GridBagConstraints.BOTH;
-    gridBagConstraints.weightx = 1.0;
-    gridBagConstraints.weighty = 1.0;
-    gridBagConstraints.insets = new java.awt.Insets(4, 4, 4, 4);
-    getContentPane().add(parmsPanel, gridBagConstraints);
     gridBagConstraints = new java.awt.GridBagConstraints();
     gridBagConstraints.gridx = 2;
     gridBagConstraints.gridy = 2;
@@ -544,7 +535,6 @@ public class Headout
   private javax.swing.JMenuBar menuBar;
   private javax.swing.ButtonGroup outputFormatGroup;
   private javax.swing.JPanel outputPanel;
-  private javax.swing.JPanel parmsPanel;
   private javax.swing.JButton transformNowButton;
   private javax.swing.JComboBox transformTypeComboBox;
   // End of variables declaration//GEN-END:variables
