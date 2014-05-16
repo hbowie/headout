@@ -38,7 +38,7 @@ public class Headout
             WindowToManage,
             XHandler{
   
-  public static final String PROGRAM_NAME = "Headout";
+  public static final String PROGRAM_NAME = "HeadOut";
   public static final String PROGRAM_VERSION = "1.00";
   
   public static final boolean PREFS_AVAILABLE = false;
