@@ -209,7 +209,7 @@ public class Headout
     
     // Help Menu 
     xos.setHelpMenu (helpMenu);
-    home.setHelpMenu(helpMenu);
+    home.setHelpMenu(this, helpMenu);
     xos.setHelpMenuItem (home.getHelpMenuItem());
     /*
     if (! xos.isRunningOnMacOS()) {
@@ -238,9 +238,6 @@ public class Headout
         }
       });
     
-
-    
-    
     WindowMenuManager.getShared().addWindowMenu(windowMenu);
     /* 
     try {
@@ -259,7 +256,7 @@ public class Headout
     
   }
   
-  private void setDefaultScreenSizeAndLocation() {
+  public void setDefaultScreenSizeAndLocation() {
 
 		this.setSize(DEFAULT_WIDTH, DEFAULT_HEIGHT);
     this.setResizable (true);
