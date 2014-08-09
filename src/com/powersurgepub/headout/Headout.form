@@ -41,10 +41,11 @@
     <Component class="javax.swing.JComboBox" name="transformTypeComboBox">
       <Properties>
         <Property name="model" type="javax.swing.ComboBoxModel" editor="org.netbeans.modules.form.editors2.ComboBoxModelEditor">
-          <StringArray count="3">
+          <StringArray count="4">
             <StringItem index="0" value="Create Markdown ToC from Markdown"/>
             <StringItem index="1" value="Create HTML ToC from Markdown"/>
-            <StringItem index="2" value="Create Markdown from OPML"/>
+            <StringItem index="2" value="Add ToC to Markdown"/>
+            <StringItem index="3" value="Create Markdown from OPML"/>
           </StringArray>
         </Property>
       </Properties>

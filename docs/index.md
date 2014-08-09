@@ -100,6 +100,9 @@ Type of Transformation
 	Create HTML ToC from Markdown
 	:    This will interpret the input text as Markdown, and create a table of contents in HTML as output, using the headings found in the input as entries in the table of contents.
 
+	Add ToC to Markdown
+	:    This will interpret the input text as Markdown, add a table of contents in HTML to the source, and also convert Markdown headings to HTML. This ensures that the links in the table of contents use the same IDs as the ones used for the headings. The input file must have a heading with the text 'Table of Contents'. The generated table of contents will be inserted following this heading.
+
 	Create Markdown from OPML
 	:    This will interpret the input text as an Outline in OPML format, and create a Markdown document as output, with the outline entries converted to headings.
 

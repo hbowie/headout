@@ -61,6 +61,9 @@ public class GenTocFromMarkdown
   private             TextLineReader      reader;
   private             TextLineWriter      lineWriter;
   
+  private             int startHeadingLevel = 2;
+  private             int endHeadingLevel = 4;
+  
   public GenTocFromMarkdown (
       JFrame frame, 
       int transformTypeIndex, 
@@ -119,6 +122,22 @@ public class GenTocFromMarkdown
   public void transformNow(TextLineReader reader, TextLineWriter lineWriter) 
       throws TransformException {
     
+    startHeadingLevel = headingLevelStartSlider.getValue();
+    endHeadingLevel = headingLevelEndSlider.getValue();
+    
+    if (transformTypeString.contains("Add ToC to Markdown")) {
+      AddToCtoMarkdown addToC = new AddToCtoMarkdown();
+      addToC.transformNow(reader, lineWriter, startHeadingLevel, endHeadingLevel);
+    } else {
+      genToC (reader, lineWriter);
+    }
+    
+    savePrefs();
+  }
+  
+  private void genToC (TextLineReader reader, TextLineWriter lineWriter)
+      throws TransformException {
+    
     this.reader = reader;
     this.lineWriter = lineWriter;
     reader.open();
@@ -136,8 +155,6 @@ public class GenTocFromMarkdown
     
     
     int firstHeadingLevel = 0;
-    int startHeadingLevel = headingLevelStartSlider.getValue();
-    int endHeadingLevel = headingLevelEndSlider.getValue();
     
     boolean listItemOpen[] = new boolean[7];
     for (int i = 0; i < 7; i++) {
@@ -238,8 +255,6 @@ public class GenTocFromMarkdown
     
     reader.close();
     writer.close();
-    
-    savePrefs();
     
   }
   

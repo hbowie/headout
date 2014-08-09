@@ -39,7 +39,7 @@ public class Headout
             XHandler{
   
   public static final String PROGRAM_NAME = "HeadOut";
-  public static final String PROGRAM_VERSION = "1.00";
+  public static final String PROGRAM_VERSION = "1.10";
   
   public static final boolean PREFS_AVAILABLE = false;
   
@@ -383,6 +383,14 @@ public class Headout
         break;
         
       case 2:
+        transformer = new GenTocFromMarkdown (
+            this,
+            transformTypeComboBox.getSelectedIndex(),
+            (String)transformTypeComboBox.getSelectedItem(),
+            parmsPanel);
+        break;
+        
+      case 3:
         transformer = new OPMLtoMarkdown (
             this,
             transformTypeComboBox.getSelectedIndex(),
@@ -427,7 +435,7 @@ public class Headout
     setDefaultCloseOperation(javax.swing.WindowConstants.EXIT_ON_CLOSE);
     getContentPane().setLayout(new java.awt.GridBagLayout());
 
-    transformTypeComboBox.setModel(new javax.swing.DefaultComboBoxModel(new String[] { "Create Markdown ToC from Markdown", "Create HTML ToC from Markdown", "Create Markdown from OPML" }));
+    transformTypeComboBox.setModel(new javax.swing.DefaultComboBoxModel(new String[] { "Create Markdown ToC from Markdown", "Create HTML ToC from Markdown", "Add ToC to Markdown", "Create Markdown from OPML" }));
     transformTypeComboBox.addActionListener(new java.awt.event.ActionListener() {
       public void actionPerformed(java.awt.event.ActionEvent evt) {
         transformTypeComboBoxActionPerformed(evt);
