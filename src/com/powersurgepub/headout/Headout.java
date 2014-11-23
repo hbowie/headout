@@ -189,7 +189,6 @@ public class Headout
     Logger.getShared().setLogAllData (false);
     Logger.getShared().setLogThreshold (LogEvent.NORMAL);
     int logIndex = windowMenuManager.add(logWindow);
-    System.out.println("Log Window added at " + String.valueOf(logIndex));
     
     // About Window
     aboutWindow = new AboutWindow(
@@ -201,7 +200,6 @@ public class Headout
         "2013" // Starting Copyright Year
         );
     int aboutIndex = windowMenuManager.add(aboutWindow);
-    System.out.println("About Window added at " + String.valueOf(aboutIndex));
     
     // Help Menu 
     helpMenu = new JMenu("Help");
@@ -324,7 +322,6 @@ public class Headout
   }
   
   private void windowClose() {
-    System.out.println("window close...");
     handleQuit();
   }
   
