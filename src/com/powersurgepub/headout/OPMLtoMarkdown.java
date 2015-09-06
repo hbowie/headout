@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Herb Bowie
+ * Copyright 2014 - 2015 by Herb Bowie
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,7 +21,6 @@ package com.powersurgepub.headout;
   import com.powersurgepub.pstextio.*;
   import com.powersurgepub.psutils.*;
   import javax.swing.*;
-
   import java.io.*;
   import java.util.*;
   import org.xml.sax.*;
@@ -70,20 +69,18 @@ public class OPMLtoMarkdown
   private javax.swing.JLabel outputFormatLabel;
   
   private             TextLineReader      reader;
-  private             TextLineWriter      lineWriter;
+  private             TextLineWriter      interimLineWriter;
+  private             TextLineReader      interimLineReader;
+  private             TextLineWriter      finalLineWriter;
   
   private             XMLReader           parser;
-  private             MarkupWriter        writer = null;
+  private             MarkupWriter        mdWriter = null;
   
   private             boolean             ok = true;
   
   private             String              message = "";
   
   private             File                xmlSourceAsFile;
-  
-  private             int                 pass = 0;
-  private             boolean             tocGenerated = false;
-  private             boolean             tocInsertionPointFound = false;
   
   private             int                 startHeadingLevel = 1;
   private             int                 endHeadingLevel = 6;
@@ -92,6 +89,8 @@ public class OPMLtoMarkdown
   private             int                 lastHeadingLevel = 1;
   
   private             int                 headingLevel = 0;
+  private             int                 listLevel = -1;
+  private             int                 indents = 0;
   
   public OPMLtoMarkdown (
       JFrame frame, 
@@ -146,14 +145,17 @@ public class OPMLtoMarkdown
    headings to represent each outline level. 
   
    @param reader The line reader to be used to access the input.
-   @param lineWriter The line writer to be used to create the output. 
+   @param lineWriter The line mdWriter to be used to create the output. 
    @throws TransformException If an error occurs. 
   */
   public void transformNow(TextLineReader reader, TextLineWriter lineWriter) 
       throws TransformException {
     
     this.reader = reader;
-    this.lineWriter = lineWriter;
+    finalLineWriter = lineWriter;
+    interimLineWriter = new StringMaker();
+    
+    // First transform the OPML input to an interim string containing Markdown
     
     ok = true;
     message = "";
@@ -164,10 +166,10 @@ public class OPMLtoMarkdown
     
     // Open Output File
     int markupFormat = MarkupWriter.MARKDOWN_FORMAT;
-    writer = new MarkupWriter(lineWriter, markupFormat);
-    writer.setIndenting(true);
-    writer.setIndentPerLevel(2);
-    writer.openForOutput();
+    mdWriter = new MarkupWriter(interimLineWriter, markupFormat);
+    mdWriter.setIndenting(true);
+    mdWriter.setIndentPerLevel(4);
+    mdWriter.openForOutput();
     
     // Set up XML Parser to read the OPML input
     try {
@@ -189,7 +191,6 @@ public class OPMLtoMarkdown
     }
     if (ok) {
       parser.setContentHandler (this);
-      
       if (! xmlSourceAsFile.exists()) {
         ok = false;
         Logger.getShared().recordEvent (LogEvent.MEDIUM, 
@@ -217,30 +218,31 @@ public class OPMLtoMarkdown
     }
     
     if (ok) {
-      pass = 0;
-      tocGenerated = false;
-      // Let's do an initial pass
       parseOPML();
-      // If we generated a Table of Contents on the first pass, 
-      // then let's do a second pass to finish writing the outline. 
-      if (tocGenerated) {
-        parseOPML();
-      }
     }
     
     if (! ok) {
       throw new TransformException(message);
     }
-
-    writer.close();
     
+    mdWriter.close();
+    
+    // Now let's add a Table of Contents to the Markdown file
+    interimLineReader = new StringLineReader(interimLineWriter.toString());
+    interimLineWriter = null;
+    AddToCtoMarkdown addToC = new AddToCtoMarkdown();
+    addToC.transformNow(interimLineReader, finalLineWriter, 
+        startHeadingLevel, endHeadingLevel);
+    
+    // Let's save our user's preferences before exiting
     savePrefs();
   }
   
   private void parseOPML() {
     
-    pass++;
-    tocInsertionPointFound = false;
+    headingLevel = 0;
+    listLevel = -1;
+    indents = 0;
     
     try {
       parser.parse (xmlSourceAsFile.toURI().toString());
@@ -264,6 +266,14 @@ public class OPMLtoMarkdown
       
   }
   
+  /**
+   This is where all the content is processed. 
+  
+   @param namespaceURI
+   @param localName This is the name identifier we will use. 
+   @param qualifiedName
+   @param attributes Where all the content resides. 
+  */
   public void startElement (
       String namespaceURI,
       String localName,
@@ -272,75 +282,54 @@ public class OPMLtoMarkdown
 
     if (localName.equalsIgnoreCase(OUTLINE)) {
       headingLevel++;
-      boolean generatingContent = false;
       for (int i = 0; i < attributes.getLength(); i++) {
         String name = attributes.getLocalName (i);
         String value = attributes.getValue (i);
         if (name.equalsIgnoreCase(TEXT)) {
-          
-          String id = MarkdownLine.makeID(value, 0, value.length() - 1);
-          // System.out.println(" ");
-          // System.out.println("Pass # = " + String.valueOf(pass));
-          // System.out.println("Heading Level = " + String.valueOf(headingLevel));
-          // System.out.println("Heading Text  = " + value);
-          // System.out.println("Heading ID    = " + id);
-          boolean tocEligibleHeading = 
-              (headingLevel >= startHeadingLevel
-              && headingLevel <= endHeadingLevel
-              && id.length() > 0
-              && (! id.equalsIgnoreCase("tableofcontents"))
-              && (! id.equalsIgnoreCase("contents")));
-          // System.out.println("Eligible for TOC? " + String.valueOf(tocEligibleHeading));
-          if (tocEligibleHeading
-              && (! tocInsertionPointFound)) {
-            tocInsertionPointFound = true;
-            // System.out.println("TOC Insertion Point Found!");
-          }
-          
-          if (pass == 1
-              && tocInsertionPointFound) {
-            tocGenerated = true;
-          }
-          
-          if (pass == 1 && tocGenerated) {
-            if (tocEligibleHeading) {
-              // System.out.println("Writing out a toc line");
-              if (firstHeadingLevel < 1) {
-                firstHeadingLevel = headingLevel;
-                lastHeadingLevel = headingLevel;
-              }
-              String link = "#" + id;
-              StringBuilder tocLine = new StringBuilder();
-              int h = firstHeadingLevel;
-              while (h < headingLevel) {
-                tocLine.append("    ");
-                h++;
-              }
-              tocLine.append("* ");
-              tocLine.append("[");
-              tocLine.append(value);
-              tocLine.append("](");
-              tocLine.append(link);
-              tocLine.append(")");
-              writer.writeLine(tocLine.toString());
-              lastHeadingLevel = headingLevel;
-            } else {
-              // If first pass and we're generating a table of contents,
-              // but this heading isn't eligible, then just skip it for now. 
+          if (headingLevel <= endHeadingLevel) {
+            endOpenLists();
+            mdWriter.writeHeading(headingLevel, value, "");
+          } else {
+            if (listLevel < endHeadingLevel) {
+              listLevel = endHeadingLevel;
             }
-          } // End of toc generation condition
-          
-          if ((pass == 1 && (! tocGenerated))
-              || (pass == 2 && (tocInsertionPointFound))) {
-            writer.writeHeading(headingLevel, value, "");
-            generatingContent = true;
-            // System.out.println("Writing out a heading line");
+            endOpenLists();
+            while (listLevel < headingLevel) {
+              mdWriter.startUnorderedList("");
+              listLevel++;
+            }
+            mdWriter.startListItem("");
+            mdWriter.write("* ");
+            mdWriter.write(value);
+            mdWriter.endListItem();
+            moreIndent();
           } // End of content generation condition
         }
         else
         if (name.equalsIgnoreCase(NOTE)) {
-          if (generatingContent) {
-            writer.writeLine(value);
+          int j = 0;
+          int k = 0;
+          int l = 0;
+          while (j < value.length()) {
+            int lfs = 0;
+            k = value.indexOf(GlobalConstants.LINE_FEED, j);
+            if (k < 0) {
+              k = value.length();
+            }
+            l = k;
+            while (l < value.length()
+                && (value.charAt(l) == GlobalConstants.LINE_FEED
+                  || value.charAt(l) == GlobalConstants.CARRIAGE_RETURN)) {
+              if (value.charAt(l) == GlobalConstants.LINE_FEED) {
+                lfs++;
+              }
+              l++;
+            }
+            mdWriter.writeLine(value.substring(j, k));
+            if (lfs > 1) {
+              mdWriter.newLine();
+            }
+            j = l;
           }
         } // end if it was a note
       } // End for each attribute of the Outline element
@@ -355,7 +344,29 @@ public class OPMLtoMarkdown
     if (localName.equalsIgnoreCase(OUTLINE)) {
       headingLevel--;
     }
+    endOpenLists();
   } // end method
+  
+  private void endOpenLists() {
+    while (listLevel > headingLevel && listLevel > endHeadingLevel) {
+      mdWriter.endUnorderedList();
+      listLevel--;
+    }
+    adjustIndent();
+  }
+  
+  private void moreIndent() {
+    mdWriter.moreIndent();
+    indents++;
+  }
+  
+  private void adjustIndent() {
+    while (indents > (listLevel - endHeadingLevel)
+        && indents > 0) {
+      mdWriter.lessIndent();
+      indents--;
+    }
+  }
   
   /**
    Save user options as preferences. 

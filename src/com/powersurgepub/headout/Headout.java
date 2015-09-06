@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Herb Bowie
+ * Copyright 2014 - 2015 Herb Bowie
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -39,7 +39,7 @@ public class Headout
             XHandler{
   
   public static final String PROGRAM_NAME = "HeadOut";
-  public static final String PROGRAM_VERSION = "1.10";
+  public static final String PROGRAM_VERSION = "1.20";
   
   public static final boolean PREFS_AVAILABLE = false;
   

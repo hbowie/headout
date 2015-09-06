@@ -1,4 +1,11 @@
 
+## Version 1.20 (2015-09-06)
+
+1. **Refined OPML to Markdown Option**
+
+    Outline levels not included in the Table of Contents are now converted to Unordered List items rather than headings, to make resulting documents easier to navigate.
+
+
 ## Version 1.10 (2014-07-28)
 
 1. **Added New Markdown Table of Contents Option**
