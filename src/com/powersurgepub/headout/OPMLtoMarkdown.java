@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 - 2015 by Herb Bowie
+ * Copyright 2014 - 2017 by Herb Bowie
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -27,7 +27,7 @@ package com.powersurgepub.headout;
   import org.xml.sax.helpers.*;
 
 /**
- Generate a Table of Contents from Markdown source. 
+ Generate a Markdown document from OPML source. 
 
  @author Herb Bowie
  */
@@ -92,6 +92,14 @@ public class OPMLtoMarkdown
   private             int                 listLevel = -1;
   private             int                 indents = 0;
   
+  /**
+   Construct a new OPML to MD transformer. 
+  
+   @param frame The overall application frame. 
+   @param transformTypeIndex WHich transformation was requested?
+   @param transformTypeString What did we call it?
+   @param panel The panel to be used to collect user input. 
+  */
   public OPMLtoMarkdown (
       JFrame frame, 
       int transformTypeIndex, 
