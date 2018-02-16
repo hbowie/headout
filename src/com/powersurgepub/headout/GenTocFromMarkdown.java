@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 - 2015 Herb Bowie
+ * Copyright 2014 - 2018 Herb Bowie
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,12 +15,14 @@
  */
 package com.powersurgepub.headout;
 
-  import com.powersurgepub.psdatalib.txbio.*;
-  import com.powersurgepub.psdatalib.ui.*;
-  import com.powersurgepub.psmkdown.*;
-  import com.powersurgepub.pstextio.*;
-  import com.powersurgepub.psutils.*;
-  import javax.swing.*;
+  import com.powersurgepub.psutils2.env.*;
+  import com.powersurgepub.psutils2.mkdown.*;
+  import com.powersurgepub.psutils2.textio.*;
+  import com.powersurgepub.psutils2.txbio.*;
+  import com.powersurgepub.psutils2.ui.*;
+
+  import javafx.scene.control.*;
+  import javafx.scene.layout.*;
 
 /**
  Generate a Table of Contents from Markdown source. 
@@ -37,79 +39,80 @@ public class GenTocFromMarkdown
   
   private             UserPrefs           prefs;
   
-  private             JFrame              frame = null;
-  
-  private             JPanel              panel = null;
-  
   private             int                 transformTypeIndex = 0;
   private             String              transformTypeString = "";
+
+  private             FXUtils             fxUtils;
+
+  private             GridPane            grid;
   
-  private             GridBagger          gb = new GridBagger();
-  
-  private javax.swing.JMenu fileMenu;
-  private javax.swing.JButton genTOCButton;
-  private javax.swing.JLabel headingLevelEndLabel;
-  private javax.swing.JSlider headingLevelEndSlider;
-  private javax.swing.JLabel headingLevelStartLabel;
-  private javax.swing.JSlider headingLevelStartSlider;
-  private javax.swing.JMenuBar menuBar;
-  private javax.swing.JLabel messageLabel;
-  private javax.swing.JComboBox outputFormatComboBox;
-  private javax.swing.ButtonGroup outputFormatGroup;
-  private javax.swing.JLabel outputFormatLabel;
+  private             Menu                fileMenu;
+  private             Button              genTOCButton;
+  private             Label               headingLevelEndLabel;
+  private             Slider              headingLevelEndSlider;
+  private             Label               headingLevelStartLabel;
+  private             Slider              headingLevelStartSlider;
+  private             MenuBar             menuBar;
+  private             Label               messageLabel;
+  private             ComboBox            outputFormatComboBox;
+  private             Label               outputFormatLabel;
   
   private             TextLineReader      reader;
   private             TextLineWriter      lineWriter;
   
-  private             int startHeadingLevel = 2;
-  private             int endHeadingLevel = 4;
+  private             int                 startHeadingLevel = 2;
+  private             int                 endHeadingLevel = 4;
   
   public GenTocFromMarkdown (
-      JFrame frame, 
       int transformTypeIndex, 
-      String transformTypeString,
-      JPanel panel) {
-    
-    this.frame = frame;
-    this.panel = panel;
+      String transformTypeString) {
+
     this.transformTypeIndex = transformTypeIndex;
     this.transformTypeString = transformTypeString;
     
     prefs = UserPrefs.getShared();
+
+    fxUtils = FXUtils.getShared();
+    grid = new GridPane();
+    fxUtils.applyStyle(grid);
     
-    gb.startLayout(panel, 1, 4);
-    
-		gb.setByRows (false);
-		gb.setAllInsets (4);
-		gb.setDefaultRowWeight (0.0);
-    
-    headingLevelStartLabel = new javax.swing.JLabel();
+    headingLevelStartLabel = new Label();
     headingLevelStartLabel.setText("Lowest Heading Level");
-    gb.add(headingLevelStartLabel);
+    grid.add(headingLevelStartLabel, 0, 0, 1, 1);
 
-    headingLevelStartSlider = new javax.swing.JSlider();
-    headingLevelStartSlider.setMajorTickSpacing(1);
-    headingLevelStartSlider.setMaximum(6);
-    headingLevelStartSlider.setMinimum(1);
-    headingLevelStartSlider.setPaintLabels(true);
-    headingLevelStartSlider.setPaintTicks(true);
-    headingLevelStartSlider.setValue(1);
+    headingLevelStartSlider = new Slider(1, 6, 1);
     headingLevelStartSlider.setValue(prefs.getPrefAsInt(HEADING_LEVEL_START, 1));
-    gb.add(headingLevelStartSlider);
+    headingLevelStartSlider.setSnapToTicks(true);
+    headingLevelStartSlider.setShowTickLabels(true);
+    headingLevelStartSlider.setShowTickMarks(true);
+    headingLevelStartSlider.setMajorTickUnit(1.0);
+    headingLevelStartSlider.setMinorTickCount(0);
+    grid.add(headingLevelStartSlider, 0, 1, 1, 1);
+    GridPane.setHgrow(headingLevelStartSlider, Priority.ALWAYS);
     
-    headingLevelEndLabel = new javax.swing.JLabel();
+    headingLevelEndLabel = new Label();
     headingLevelEndLabel.setText("Highest Heading Level");
-    gb.add(headingLevelEndLabel);
+    grid.add(headingLevelEndLabel, 0, 2, 1, 1);
 
-    headingLevelEndSlider = new javax.swing.JSlider();
-    headingLevelEndSlider.setMajorTickSpacing(1);
-    headingLevelEndSlider.setMaximum(6);
-    headingLevelEndSlider.setMinimum(1);
-    headingLevelEndSlider.setPaintLabels(true);
-    headingLevelEndSlider.setPaintTicks(true);
+    headingLevelEndSlider = new Slider(1, 6, 6);
     headingLevelEndSlider.setValue(prefs.getPrefAsInt(HEADING_LEVEL_END, 6));
-    gb.add(headingLevelEndSlider);
+    headingLevelEndSlider.setSnapToTicks(true);
+    headingLevelEndSlider.setShowTickLabels(true);
+    headingLevelEndSlider.setShowTickMarks(true);
+    headingLevelEndSlider.setMajorTickUnit(1.0);
+    headingLevelEndSlider.setMinorTickCount(0);
+    grid.add(headingLevelEndSlider, 0, 3, 1, 1);
+    GridPane.setHgrow(headingLevelEndSlider, Priority.ALWAYS);
     
+  }
+
+  /**
+   Get the GridPane containing the controls for this transformer.
+
+   @return the grid pane containing the controls for this type of transformation.
+   */
+  public GridPane getGrid() {
+    return grid;
   }
   
   /**
@@ -121,9 +124,11 @@ public class GenTocFromMarkdown
   */
   public void transformNow(TextLineReader reader, TextLineWriter lineWriter) 
       throws TransformException {
-    
-    startHeadingLevel = headingLevelStartSlider.getValue();
-    endHeadingLevel = headingLevelEndSlider.getValue();
+
+    Double startHeadingLevelDouble = new Double(headingLevelStartSlider.getValue());
+    startHeadingLevel = startHeadingLevelDouble.intValue();
+    Double endHeadingLevelDouble = new Double(headingLevelEndSlider.getValue());
+    endHeadingLevel = endHeadingLevelDouble.intValue();
     
     if (transformTypeString.contains("Add ToC to Markdown")) {
       AddToCtoMarkdown addToC = new AddToCtoMarkdown();

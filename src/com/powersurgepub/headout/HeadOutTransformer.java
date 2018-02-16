@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Herb Bowie
+ * Copyright 2014 - 2018 Herb Bowie
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,7 +15,9 @@
  */
 package com.powersurgepub.headout;
 
-  import com.powersurgepub.pstextio.*;
+  import com.powersurgepub.psutils2.textio.*;
+
+  import javafx.scene.layout.*;
 
 /**
  Standard interface for a transform routine used by Headout. 
@@ -23,7 +25,21 @@ package com.powersurgepub.headout;
  @author Herb Bowie
  */
 public interface HeadOutTransformer {
-  
+
+  /**
+   Get the GridPane containing the controls for this transformer.
+
+   @return the grid pane containing the controls for this type of transformation.
+   */
+  public GridPane getGrid();
+
+  /**
+   Transform the input to the output.
+
+   @param reader The input.
+   @param writer The ouput.
+   @throws TransformException If something goes amiss.
+   */
   public void transformNow(TextLineReader reader, TextLineWriter writer)
       throws TransformException;
   

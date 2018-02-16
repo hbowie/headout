@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Herb Bowie
+ * Copyright 2014 - 2018 Herb Bowie
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,13 +15,16 @@
  */
 package com.powersurgepub.headout;
 
-  import com.powersurgepub.psdatalib.ui.*;
-  import com.powersurgepub.pstextio.*;
-  import com.powersurgepub.xos2.*;
-  import java.awt.event.*;
-  import java.awt.*;
+  import com.powersurgepub.psutils2.textio.*;
+  import com.powersurgepub.psutils2.ui.*;
+
+  import javafx.collections.*;
+  import javafx.scene.control.*;
+  import javafx.scene.layout.*;
+  import javafx.stage.*;
+
   import java.io.*;
-  import javax.swing.*;
+
 
 /**
  A class that facilitates the selection and use of a text file for either
@@ -31,116 +34,106 @@ package com.powersurgepub.headout;
  */
 public class TextFileSelector {
   
-  private int inOrOut = 0;
-  public static final int INPUT = 0;
-  public static final int OUTPUT = 1;
+  private             int inOrOut             = 0;
+  public static final int   INPUT             = 0;
+  public static final int   OUTPUT            = 1;
+
+  private             Window                  mainWindow;
   
-  private             JFrame frame = null;
+  private             FXUtils                 fxUtils;
+  private             GridPane                grid;
   
-  private             JPanel panel = null;
+  private             Label                   ioLabel;
+
+  private             ObservableList<String>  textTypeLabels;
+  private             ComboBox                textTypeComboBox;
   
-  private             GridBagger           gb = new GridBagger();
+  private             TextArea                fileNameText;
   
-  private             JLabel               ioLabel;
+  private             File                    file = null;
   
-  private             String[]             textTypeLabels = 
-  {"System Clipboard", "Local File..."};
-  private             JComboBox            textTypeComboBox;
+  private             TextLineReader          reader = null;
   
-  private             JTextArea            fileNameText;
-  
-  private             File                 file = null;
-  
-  private             TextLineReader       reader = null;
-  
-  private             TextLineWriter       writer = null;
-  
-  public TextFileSelector (JFrame frame, int inOrOut) {
-    this.frame = frame;
+  private             TextLineWriter          writer = null;
+
+  /**
+   Create a text file selector.
+
+   @param inOrOut Either for input or output.
+   */
+  public TextFileSelector (Window mainWindow, int inOrOut) {
+    this.mainWindow = mainWindow;
     this.inOrOut = inOrOut;
-    panel = new JPanel();
     commonConstruction();
   }
-  
-  public TextFileSelector (JFrame frame, int inOrOut, JPanel panel) {
-    this.frame = frame;
-    this.inOrOut = inOrOut;
-    this.panel = panel;
-    commonConstruction();
-  }
-  
+
+  /**
+   Build the appropriate UI.
+   */
   private void commonConstruction() {
-    
-    Dimension min = new Dimension (240, 120);
-    panel.setMinimumSize(min);
-    gb.startLayout(panel, 1, 3);
-    
-		gb.setByRows (false);
-		gb.setAllInsets (4);
-		gb.setDefaultRowWeight (0.0);
-		
-		// Column 0
+
+    grid = new GridPane();
+    fxUtils = FXUtils.getShared();
+    fxUtils.applyStyle(grid);
+
     if (inOrOut == INPUT) {
-      ioLabel = new JLabel ("Specify Source for Input Text", JLabel.LEFT);
+      ioLabel = new Label ("Specify Source for Input Text");
     } else {
-      ioLabel = new JLabel ("Specify Target for Output Text", JLabel.LEFT);
+      ioLabel = new Label ("Specify Target for Output Text");
     }
-    gb.add (ioLabel);
-    
-    textTypeComboBox = new JComboBox(textTypeLabels);
-    gb.add (textTypeComboBox);
+    grid.add(ioLabel, 0, 0, 1, 1);
+
+    textTypeLabels = FXCollections.<String>observableArrayList("System Clipboard", "Local File...");
+    textTypeComboBox = new ComboBox<>(textTypeLabels);
+    textTypeComboBox.getSelectionModel().select(0);
+    grid.add(textTypeComboBox, 0, 1, 1, 1);
     textTypeComboBox.setEditable (false);
-		textTypeComboBox.addActionListener (new ActionListener()
-		  {
-		    public void actionPerformed (ActionEvent event) {
-          reader = null;
-          writer = null;
-		      JComboBox cb = (JComboBox)event.getSource();
-		      String inType = (String)cb.getSelectedItem();
-          file = null;
-          if (cb.getSelectedIndex() == 1) {
-            XFileChooser fileChooser = new XFileChooser();
-            fileChooser.setFileSelectionMode(XFileChooser.FILES_ONLY);
-            if (inOrOut == INPUT) {
-              fileChooser.setDialogTitle("Select Input File");
-              file = fileChooser.showOpenDialog(frame);
-            } else {
-              fileChooser.setDialogTitle("Specify Output File");
-              file = fileChooser.showSaveDialog(frame);
-            }
-          } // end if user said he wanted to select a file
-          if (file == null) {
-            fileNameText.setText(" ");
-          } else {
-            try {
-              fileNameText.setText(file.getCanonicalPath());
-            } catch (IOException e) {
-              fileNameText.setText(file.getPath());
-            }
-          } // end if file identified
-		    } // end ActionPerformed method
-		  } // end action listener for input type combo box
-		); 
+    textTypeComboBox.setOnAction(e -> textTypeSelected());
     
-    fileNameText = new JTextArea("                    ");
+    fileNameText = new TextArea("                    ");
     fileNameText.setEditable(false);
-    fileNameText.setLineWrap(true);
-    
-    gb.setFill(GridBagConstraints.BOTH);
-    gb.setColumnWeight(1.0);
-    gb.setRowWeight(1.0);
-    
-    gb.add (fileNameText);
+    fileNameText.setWrapText(true);
+    fileNameText.setPrefRowCount(40);
+    fileNameText.setPrefColumnCount(20);
+    grid.add(fileNameText, 0, 2, 1, 1);
+    GridPane.setHgrow(fileNameText, Priority.ALWAYS);
+    GridPane.setVgrow(fileNameText, Priority.ALWAYS);
   }
   
   /**
-   Return the panel to be used as a UI component to allow the user
+   Return the pane to be used as a UI component to allow the user
    to specify the text source or destination. 
   
-   @return The panel to be used as a UI component. 
+   @return The pane to be used as a UI component.
   */
-  public JPanel getPanel() {
-    return panel;
+  public GridPane getGrid() {
+    return grid;
+  }
+
+  private void textTypeSelected() {
+    reader = null;
+    writer = null;
+    String inType = (String)textTypeComboBox.getSelectionModel().getSelectedItem();
+    file = null;
+    if (textTypeComboBox.getSelectionModel().getSelectedIndex() == 1) {
+      FileChooser fileChooser = new FileChooser();
+      if (inOrOut == INPUT) {
+        fileChooser.setTitle("Select Input File");
+        file = fileChooser.showOpenDialog(mainWindow);
+      } else {
+        fileChooser.setTitle("Specify Output File");
+        file = fileChooser.showSaveDialog(mainWindow);
+      }
+    } // end if user said he wanted to select a file
+    if (file == null) {
+      fileNameText.setText(" ");
+    } else {
+      try {
+        fileNameText.setText(file.getCanonicalPath());
+      } catch (IOException e) {
+        fileNameText.setText(file.getPath());
+      }
+    } // end if file identified
   }
   
   /**

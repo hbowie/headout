@@ -6,32 +6,32 @@
 <h2 id="table-of-contents">Table of Contents</h2>
 
 <div id="toc">
-  <ul>
-    <li>
-      <a href="#introduction">Introduction</a>
-    </li>
-    <li>
-      <a href="#getting-started">Getting Started</a>
-      <ul>
-        <li>
-          <a href="#system-requirements">System Requirements</a>
-        </li>
-        <li>
-          <a href="#rights">Rights</a>
-        </li>
-        <li>
-          <a href="#installation">Installation</a>
-        </li>
-      </ul>
+<ul>
+<li>
+<a href="#introduction">Introduction</a>
+</li>
+<li>
+<a href="#getting-started">Getting Started</a>
+<ul>
+<li>
+<a href="#system-requirements">System Requirements</a>
+</li>
+<li>
+<a href="#rights">Rights</a>
+</li>
+<li>
+<a href="#installation">Installation</a>
+</li>
+</ul>
 
-    </li>
-    <li>
-      <a href="#data-fields">Data Fields</a>
-    </li>
-    <li>
-      <a href="#user-interface">User Interface</a>
-    </li>
-  </ul>
+</li>
+<li>
+<a href="#data-fields">Data Fields</a>
+</li>
+<li>
+<a href="#user-interface">User Interface</a>
+</li>
+</ul>
 
 </div>
 
